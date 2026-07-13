@@ -1,87 +1,92 @@
-# template_repository_python
+# Token Compressor
 
-## 概要
+LLMのコンテキストから定型文や不要な雑談（ノイズ）を自動で削ぎ落とし、**「最少のコスト（トークン数）」**と**「最高の回答品質」**のベストバランスを自動探索する多目的最適化パイプラインです。
 
-Pythonプロジェクトの開始に必要な基本的な設定と構成を提供するテンプレートリポジトリです。  
-`uv`を用いた依存関係の管理、`pre-commit`を用いたコードのリンティング (`mypy`) およびフォーマット (`ruff`) の設定ファイルが含み、すぐに環境構築することが可能にします。
+`Embeddingによるセマンティックフィルタリング` ➔ `LLMによる回答生成` ➔ `LLM-as-a-Judgeによる品質評価` の一連の流れを、ハイパーパラメータ最適化フレームワーク `Optuna` を用いて自律駆動させます。
 
-## 主な機能
+---
 
-* **依存関係管理:** `uv` が構成されており、依存関係の管理が容易です。
-* **pre-commit:** `pre-commit` が構成されており、コミット時に以下レンティングとフォーマットを実行し、コード品質を維持できます。
-* **リンティングとフォーマット:** `mypy`, `ruff` がプリセットされており、コード品質を維持できます。
+## 🌟 主な特徴
 
-## 使い方
+* **セマンティック・ノイズフィルタリング**: 挨拶、定型句、会議の雑談などのビジネス不要文の埋め込みベクトル（Embedding）を事前にキャッシュ。コサイン類似度を用いてコンテキストから動的に判定・排除します。
+* **Optunaによる多目的最適化**: 「コスト（文字数）の最小化」と「回答品質スコアの最大化」という、トレードオフ関係にある2つの指標から**パレート最適解**を自動探索します。
+* **LLM-as-a-Judge**: フィルター後のコンテキストと生成された回答の妥当性を、LLMが厳格な評価官として5段階でスコアリングします。
+* **ローカルLLM環境 (Ollama) 完全対応**: すべての推論、埋め込み、評価プロセスをローカルのOllama環境で完結させることが可能です。
 
-### テンプレートからリポジトリを作成する
+---
 
-1. このリポジトリをforkします。
-2.  新しいリポジトリを作成します。
-3.  "Repository template" でドロップダウンから上記リポジトリを選択します。
+## 📦 システム構成
 
-### ローカル環境のセットアップ
+本プロジェクトは以下の3つのコアモジュールで構成されています。
 
-上記作成したリポジトリをローカルにクローンします。
-
-```bash
-git clone https://github.com/your-username/your-new-repository.git
-cd your-new-repository
+```text
+src/aiai/infra/
+├── token_filter.py      # Embeddingを用いた類似度ベースのノイズフィルタ
+├── llm_judge.py         # 厳格なプロンプトによるLLM-as-a-Judge評価器
+└── token_optimizer.py   # Optunaを統合したメインの多目的最適化エンジン
 ```
 
-### 依存関係のインストール
+## 🚀 クイックスタート
 
-プロジェクトの依存関係をインストールします。  
-`uv`を使用する場合は、次のコマンドを実行します。
+1. 前提条件の確認
+ローカル環境で Ollama が起動していることを確認してください。
 
-```bash
-uv sync
+```Bash
+ollama pull qwen3-embedding:0.6b
+ollama pull gemma4:12b-it-qat
 ```
 
-※ パッケージ管理の`uv`がない場合は次のコマンドでインストールしてから上記実行してください。
+2. 環境構築
+高速なPythonパッケージマネージャ uv を使用して依存関係をインストールします。
 
-```bash
-pip install uv
+```Bash
+# 仮想環境の作成とパッケージインストール
+uv venv
+uv pip install agent-framework optuna numpy
 ```
 
-依存関係の追加／削除／更新するには次のコマンドで実行します。  
-(初期状態では主に`jupyterlab`,`pre-commit`,`ruff`,`uv`のパッケージが依存関係として入っており、`pyproject.toml`に記載されています。詳細な依存関係については`uv.lock`に記載されています)
+3. 最最適化の実行とログの検証
+サンプルデータ（雑談が混じった会議の議事録）を用いた最適化を実行します。
 
-```bash
-uv add {package_name}
-uv remove {package_name}
-uv sync
+```Bash
+uv run src/token_optimizer.py
 ```
 
-### uvで構築した環境の入り方
+## 📊 実際の最適化プロセスの挙動
+実行時、Optunaはフィルターの閾値（filter_threshold）を動的に変化させながら品質をテストします。
 
-`uv`で構築した`.venv/`の環境に入るには以下コマンドで実行します。  
-(以下例はwindowsの場合。windows以外では `.venv/Scripts` を `.venv/bin` と置き換えてください)
+- 過剰に削りすぎて失敗した例 (Trial 3): 閾値を 0.473 まで上げてしまうと、会議の核心である重要な発言まで誤ってノイズとしてカットされてしまいます。結果、LLM-as-a-Judgeによって情報の欠落を見抜かれ、最低評価を受けます。
+    ```Plaintext
+    [Trial 3 finished with values: [1058.0, 1.0] and parameters: {'filter_threshold': 0.473}]
+    ```
 
-```bash
-# bash系の場合
-source .venv\Scripts\activate
+- ベストバランスを達成した例 (Trial 4): 閾値を 0.394 に微調整することで、不要な相槌やランチの雑談だけを綺麗に削ぎ落とし、重要な技術議論の文脈を維持したまま、満点（5.0）を維持して文字数を「826文字」まで圧縮することに成功しました。
+    ```Plaintext
+    [Trial 4 finished with values: [826.0, 5.0] and parameters: {'filter_threshold': 0.394}]
+    ```
 
-# コマンドプロンプトの場合
-.venv\Scripts\activate.bat
+## 🏆 最終出力（パレート最適解）
 
-# PowerShellの場合
-.venv\Scripts\activate.ps1
+すべての試行が終わると、品質を犠牲にせず最もトークンを節約できた効率的なパラメータが選出されます。
+
+```Plaintext
+🏆 【最適化完了】 パレート最適解:
+解 1:
+    パラメータ: {'filter_threshold': 0.39433682602614367}
+    評価値 [コスト(文字数), スコア]: [826.0, 5.0]
 ```
 
-### pre-commitの適用
+## 🛠️ 各モジュールの仕様
+1. `EmbeddingFilter` (`token_filter.py`)
+除外したいビジネス定型句（「お世話になっております」等）をあらかじめベクトル化。コンテキストを1行ずつパースし、設定された閾値以上の類似度を持つ行をノイズとしてカットします。
 
-`pre-commit`は次のコマンドで有効化します。  
-(設定は `.pre-commit-config.yaml` に記載しています)
+2. `LLMAsAJudge` (`llm_judge.py`)
+生成された回答に「情報の欠落がないか」「ハルシネーション（嘘）が含まれていないか」を元コンテキストと照らし合わせ、5段階のScoreを出力させます。パース失敗時は安全側に倒して1.0（最低点）を返す堅牢な設計です。
 
-```bash
-pre-commit install
-pre-commit autoupdate
-```
+3. `PromptOptimizer` (`token_optimizer.py`)
+Optunaの `directions=["minimize", "maximize"]` を使用。各試行を完全に独立した非同期イベントループ（`asyncio.new_event_loop`）で駆動させ、競合を起こさずに安全に並列シミュレーションを行います。
 
-### リンティングとフォーマット
+## 🤝 ライセンス
 
-`pre-commit`を設定することによりコミット時にコードのリンティングとフォーマットが自動で行われるのですが、コマンドラインからマニュアル実行した場合は以下のコマンドを実行します。
+MIT License
 
-```bash
-pre-commit run --all-files
-```
