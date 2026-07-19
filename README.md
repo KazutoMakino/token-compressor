@@ -20,7 +20,7 @@ LLMのコンテキストから定型文や不要な雑談（ノイズ）を自�
 本プロジェクトは以下の3つのコアモジュールで構成されています。
 
 ```text
-src/aiai/infra/
+src/
 ├── token_filter.py      # Embeddingを用いた類似度ベースのノイズフィルタ
 ├── llm_judge.py         # 厳格なプロンプトによるLLM-as-a-Judge評価器
 └── token_optimizer.py   # Optunaを統合したメインの多目的最適化エンジン
