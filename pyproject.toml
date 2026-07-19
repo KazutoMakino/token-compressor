@@ -1,12 +1,13 @@
 [project]
 name = "token-compressor"
 version = "0.1.0"
-description = "Add your description here"
+description = "LLMコンテキストのノイズ除去とコスト×品質の多目的最適化パイプライン"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "agent-framework>=1.11.0",
     "isort>=8.0.1",
+    "numpy>=2.0.0",
     "optuna>=4.9.0",
     "pre-commit>=4.2.0",
     "ruff>=0.11.6",

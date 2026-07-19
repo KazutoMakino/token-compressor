@@ -1,4 +1,4 @@
-"""src/aiai/infra/token_optimizer.py"""
+"""src/token_optimizer.py"""
 
 import asyncio
 
