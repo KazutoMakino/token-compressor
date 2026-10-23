@@ -3,7 +3,7 @@ name = "token-compressor"
 version = "0.1.0"
 description = "LLMコンテキストのノイズ除去とコスト×品質の多目的最適化パイプライン"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.14.9"
 dependencies = [
     "agent-framework>=1.11.0",
     "isort>=8.0.1",
